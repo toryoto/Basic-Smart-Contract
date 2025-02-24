@@ -12,7 +12,7 @@ contract CreateToken is ERC20, ERC20Burnable, Ownable {
         ERC20(name_, symbol_)
         Ownable(msg.sender)
     {
-        _mint(msg.sender, initialSupply * 1e18);
+        _mint(msg.sender, initialSupply);
     }
 
     // トークンの追加発行を可能にする

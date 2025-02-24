@@ -50,7 +50,7 @@ contract CreateTokenFactory {
             timestamp: block.timestamp
         });
 
-        newToken.transfer(msg.sender, initialSupply_ * 1e18);
+        newToken.transfer(msg.sender, initialSupply_);
         newToken.transferOwnership(msg.sender);
         userTokens[msg.sender].push(tokenInfo);
 
