@@ -32,7 +32,9 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.2.0"
+    "@openzeppelin/contracts": "^5.2.0",
+    "@uniswap/lib": "^4.0.1-alpha",
+    "@uniswap/v2-core": "^1.0.1"
   },
   "volta": {
     "node": "20.10.0"

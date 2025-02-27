@@ -29,12 +29,18 @@ const optimizedComilerSettings = {
 
 const config = {
   solidity: {
-    compilers: [{
-      version: "0.8.23",
-      settings: {
+    compilers: [
+      {
+        version: "0.5.16"
+      },
+      {
+        version: "0.6.6"
+      },
+      {
+        version: "0.8.28",
         optimizer: { enabled: true, runs: 1000000 }
       }
-    }],
+    ],
     overrides: {
       "contracts/core/EntryPoint.sol": optimizedComilerSettings,
       "contracts/samples/SimpleAccount.sol": optimizedComilerSettings
