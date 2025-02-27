@@ -34,9 +34,6 @@ const config = {
         version: "0.5.16"
       },
       {
-        version: "0.6.6"
-      },
-      {
         version: "0.8.28",
         optimizer: { enabled: true, runs: 1000000 }
       }
