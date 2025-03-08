@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CreateToken2 is ERC20, ERC20Burnable, Ownable {
+contract Stablecoin is ERC20, ERC20Burnable, Ownable {
     event TokensMinted(address indexed to, uint256 amount);
     
     uint8 private _decimals;
