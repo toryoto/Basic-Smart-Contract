@@ -6,6 +6,7 @@ async function main() {
   console.log("Deploying USDC with the account:", deployer.address);
   
   const usdcInitialSupply = ethers.parseUnits("1000000", 6);
+  const jpytInitialSupply = ethers.parseEther("150000000", 6);
   
   const CreateToken = await ethers.getContractFactory("CreateToken2");
   
@@ -17,8 +18,17 @@ async function main() {
   console.log("USDC deployed to:", usdcAddress);
   
   console.log("Verifying decimals...");
-  const decimals = await usdc.decimals();
-  console.log("USDC decimals:", decimals.toString());
+  const decimalsUsdc = await usdc.decimals();
+  console.log("USDC decimals:", decimalsUsdc.toString());
+
+  console.log("Deploying JPYT...");
+  const jpyt = await CreateToken.deploy("Japanese Yen Token", "JPYT", jpytInitialSupply, 6);
+  await jpyt.waitForDeployment();
+  console.log("JPYT deployed to:", await jpyt.getAddress());
+  
+  console.log("Verifying decimals...");
+  const decimalsJpyt = await jpyt.decimals();
+  console.log("JPYT decimals:", decimalsJpyt.toString());
   
   const fs = require("fs");
   const deployData = {
