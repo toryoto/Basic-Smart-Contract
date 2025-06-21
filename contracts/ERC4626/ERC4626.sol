@@ -8,48 +8,17 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-/**
- * @dev Implementation of the ERC-4626 "Tokenized Vault Standard" as defined in
- * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
- *
- * This extension allows the minting and burning of "shares" (represented using the ERC-20 inheritance) in exchange for
- * underlying "assets" through standardized {deposit}, {mint}, {redeem} and {burn} workflows. This contract extends
- * the ERC-20 standard. Any additional extensions included along it would affect the "shares" token represented by this
- * contract and not the "assets" token which is an independent contract.
- *
- * [CAUTION]
- * ====
- * In empty (or nearly empty) ERC-4626 vaults, deposits are at high risk of being stolen through frontrunning
- * with a "donation" to the vault that inflates the price of a share. This is variously known as a donation or inflation
- * attack and is essentially a problem of slippage. Vault deployers can protect against this attack by making an initial
- * deposit of a non-trivial amount of the asset, such that price manipulation becomes infeasible. Withdrawals may
- * similarly be affected by slippage. Users can protect against this attack as well as unexpected slippage in general by
- * verifying the amount received is as expected, using a wrapper that performs these checks such as
- * https://github.com/fei-protocol/ERC4626#erc4626router-and-base[ERC4626Router].
- *
- * Since v4.9, this implementation introduces configurable virtual assets and shares to help developers mitigate that risk.
- * The `_decimalsOffset()` corresponds to an offset in the decimal representation between the underlying asset's decimals
- * and the vault decimals. This offset also determines the rate of virtual shares to virtual assets in the vault, which
- * itself determines the initial exchange rate. While not fully preventing the attack, analysis shows that the default
- * offset (0) makes it non-profitable even if an attacker is able to capture value from multiple user deposits, as a result
- * of the value being captured by the virtual shares (out of the attacker's donation) matching the attacker's expected gains.
- * With a larger offset, the attack becomes orders of magnitude more expensive than it is profitable. More details about the
- * underlying math can be found xref:ROOT:erc4626.adoc#inflation-attack[here].
- *
- * The drawback of this approach is that the virtual shares do capture (a very small) part of the value being accrued
- * to the vault. Also, if the vault experiences losses, the users try to exit the vault, the virtual shares and assets
- * will cause the first user to exit to experience reduced losses in detriment to the last users that will experience
- * bigger losses. Developers willing to revert back to the pre-v4.9 behavior just need to override the
- * `_convertToShares` and `_convertToAssets` functions.
- *
- * To learn more, check out our xref:ROOT:erc4626.adoc[ERC-4626 guide].
- * ====
- */
+// ERC4626は、トークン化されたVaultの標準規格（資産を預けると、その所有権を表すシェアトークンを受け取り、後でそれを返すと元の資産プラス利回りを得られる）
+// ERC4626は、ERC20の拡張コントラクトであり、必ずステーブルである必要はない（価格変動を許容する設計:_convertToShares）
+// asset: ボルト（Vault）によって管理される基礎となるトークン。対応するEIP-20コントラクトによって定義された単位を持つ。
+// share: ボルトのトークン（4626ボルトにトークンを預けた時に受け取るERC20トークン）。mint/deposit/withdraw/redeem時に交換される基礎となる資産の比率を持つ（ボルトによって定義される）。
+// fee: ボルトがユーザーに課す資産またはシェアの金額。デポジット、利回り、AUM、引き出し、またはボルトが規定するその他のものに対する手数料が存在しうる。
+
 abstract contract ERC4626 is ERC20, IERC4626 {
     using Math for uint256;
 
-    IERC20 private immutable _asset;
-    uint8 private immutable _underlyingDecimals;
+    IERC20 private immutable _asset; // Vaultによって管理されるERC20トークンのコントラクトアドレス
+    uint8 private immutable _underlyingDecimals; // 基盤となるトークン(asset)の小数点桁数を管理
 
     /**
      * @dev Attempted to deposit more assets than the max amount for `receiver`.
@@ -71,18 +40,14 @@ abstract contract ERC4626 is ERC20, IERC4626 {
      */
     error ERC4626ExceededMaxRedeem(address owner, uint256 shares, uint256 max);
 
-    /**
-     * @dev Set the underlying asset contract. This must be an ERC20-compatible contract (ERC-20 or ERC-777).
-     */
+    // assetとなるERC20トークンを設定してERC4626コントラクトを初期化数
     constructor(IERC20 asset_) {
         (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
         _underlyingDecimals = success ? assetDecimals : 18;
         _asset = asset_;
     }
 
-    /**
-     * @dev Attempts to fetch the asset decimals. A return value of false indicates that the attempt failed in some way.
-     */
+    // 設定されたERC20トークンの桁数を取得する
     function _tryGetAssetDecimals(IERC20 asset_) private view returns (bool ok, uint8 assetDecimals) {
         (bool success, bytes memory encodedDecimals) = address(asset_).staticcall(
             abi.encodeCall(IERC20Metadata.decimals, ())
@@ -108,6 +73,7 @@ abstract contract ERC4626 is ERC20, IERC4626 {
     }
 
     /// @inheritdoc IERC4626
+    // _assetはプライベートなインスタンス変数なので外部から呼び出せるようにする
     function asset() public view virtual returns (address) {
         return address(_asset);
     }
@@ -148,6 +114,7 @@ abstract contract ERC4626 is ERC20, IERC4626 {
     }
 
     /// @inheritdoc IERC4626
+    // ERC20トークン量を受け取り、それに対応する現在のシェア数を返す
     function previewDeposit(uint256 assets) public view virtual returns (uint256) {
         return _convertToShares(assets, Math.Rounding.Floor);
     }
@@ -168,19 +135,24 @@ abstract contract ERC4626 is ERC20, IERC4626 {
     }
 
     /// @inheritdoc IERC4626
+    // 資産の預け入れとシェアの取得をする
+    // receiverでshareの受け取りアドレスを指定することで、Proxy TxやBundlerからの実行に対応できる
     function deposit(uint256 assets, address receiver) public virtual returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
         }
 
+        // 預け入れるERC20トークンから受け取るシェア数を事前計算する
         uint256 shares = previewDeposit(assets);
+        // 実際の処理を実行
         _deposit(_msgSender(), receiver, assets, shares);
 
         return shares;
     }
 
     /// @inheritdoc IERC4626
+    // 幾つのshareトークンが欲しいかを指定して実行する
     function mint(uint256 shares, address receiver) public virtual returns (uint256) {
         uint256 maxShares = maxMint(receiver);
         if (shares > maxShares) {
@@ -194,6 +166,8 @@ abstract contract ERC4626 is ERC20, IERC4626 {
     }
 
     /// @inheritdoc IERC4626
+    // Vaultに預け入れていた資産を引き出すメソッド
+    // 引き出したい資産の量を指定する（ユーザの視点「いくらの資産を引き出したいか」）
     function withdraw(uint256 assets, address receiver, address owner) public virtual returns (uint256) {
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
@@ -244,7 +218,10 @@ abstract contract ERC4626 is ERC20, IERC4626 {
         // Conclusion: we need to do the transfer before we mint so that any reentrancy would happen before the
         // assets are transferred and before the shares are minted, which is a valid state.
         // slither-disable-next-line reentrancy-no-eth
+
+        // SafeERC20を使用して安全にcaller(コントラクトまたはユーザー)からVaultにasset(ERC20トークン)を送金
         SafeERC20.safeTransferFrom(IERC20(asset()), caller, address(this), assets);
+        // 指定された量のshareトークンを鋳造
         _mint(receiver, shares);
 
         emit Deposit(caller, receiver, assets, shares);
@@ -270,6 +247,7 @@ abstract contract ERC4626 is ERC20, IERC4626 {
         //
         // Conclusion: we need to do the transfer after the burn so that any reentrancy would happen after the
         // shares are burned and after the assets are transferred, which is a valid state.
+        // ユーザが所有していたシェアをバーン(ユーザの所有権を削除) → 対応するassetを転送
         _burn(owner, shares);
         SafeERC20.safeTransfer(IERC20(asset()), receiver, assets);
 
