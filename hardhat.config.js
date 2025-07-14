@@ -19,14 +19,6 @@ function getNetwork(name) {
   return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`);
 }
 
-const optimizedComilerSettings = {
-  version: "0.8.23",
-  settings: {
-    optimizer: { enabled: true, runs: 1000000 },
-    viaIR: true
-  }
-};
-
 const config = {
   solidity: {
     compilers: [
@@ -38,10 +30,6 @@ const config = {
         optimizer: { enabled: true, runs: 1000000 }
       }
     ],
-    overrides: {
-      "contracts/core/EntryPoint.sol": optimizedComilerSettings,
-      "contracts/samples/SimpleAccount.sol": optimizedComilerSettings
-    }
   },
   networks: {
     sepolia: getNetwork("sepolia")
