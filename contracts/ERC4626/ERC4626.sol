@@ -41,7 +41,12 @@ abstract contract ERC4626 is ERC20, IERC4626 {
     error ERC4626ExceededMaxRedeem(address owner, uint256 shares, uint256 max);
 
     // assetとなるERC20トークンを設定してERC4626コントラクトを初期化数
-    constructor(IERC20 asset_) {
+    constructor(IERC20 asset_)
+        ERC20(
+            string(abi.encodePacked("Vault ", IERC20Metadata(address(asset_)).name())),
+            string(abi.encodePacked("v", IERC20Metadata(address(asset_)).symbol()))
+        )
+    {
         (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
         _underlyingDecimals = success ? assetDecimals : 18;
         _asset = asset_;
