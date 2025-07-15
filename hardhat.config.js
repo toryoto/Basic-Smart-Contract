@@ -7,18 +7,6 @@ require("solidity-coverage");
 task("deploy", "Deploy contracts")
   .addFlag("simpleAccountFactory", "deploy sample factory (by default, enabled only on localhost)");
 
-function getNetwork1(url) {
-  const secretKey = process.env.SECRET_KEY;
-  return {
-    url,
-    accounts: [secretKey]
-  };
-}
-
-function getNetwork(name) {
-  return getNetwork1(`https://${name}.infura.io/v3/${process.env.INFURA_ID}`);
-}
-
 const config = {
   solidity: {
     compilers: [
@@ -36,7 +24,9 @@ const config = {
     ],
   },
   networks: {
-    sepolia: getNetwork("sepolia")
+    hardhat: {
+      // ローカルテスト用
+    }
   },
   mocha: {
     timeout: 10000
@@ -45,6 +35,14 @@ const config = {
     apiKey: process.env.ETHERSCAN_API_KEY
   }
 };
+
+// 環境変数が存在する場合のみSepoliaネットワークを追加
+if (process.env.SECRET_KEY && process.env.INFURA_ID) {
+  config.networks.sepolia = {
+    url: `https://sepolia.infura.io/v3/${process.env.INFURA_ID}`,
+    accounts: [process.env.SECRET_KEY]
+  };
+}
 
 if (process.env.COVERAGE != null) {
   config.solidity = config.solidity.compilers[0];
